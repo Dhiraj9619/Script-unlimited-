@@ -70,14 +70,13 @@ class MatchTod:
             "Accept-Encoding": "gzip, deflate",
             "Accept-Language": "en,id-ID;q=0.9,id;q=0.8,en-US;q=0.7",
         }
-        self.ua_file = f"user_agents/{self.user.get('username')}.json"  # Save user agents in a file named after the username
+        self.ua_file = f"user_agents/{self.user.get('username')}.json"
         if update_ua:
             self.update_user_agent()
 
     async def http(self, url, headers, data=None):
         while True:
             try:
-                # No longer clearing log at the start
                 if not await file_exists(log_file):
                     await write_file(log_file, "")
                 logsize = await get_file_size(log_file)
@@ -167,12 +166,12 @@ class MatchTod:
         self.simple_log(f"{magenta}Browser: Mozilla/Linux")
         self.simple_log(f"{green}Login {white}{first_name}")
 
-        tokens = json.loads(await read_file(token_file))
+        tokens = json.loads(await read_file(token_file, encoding="latin1"))
         if not os.path.exists(self.ua_file):
             uas = {uid: UserAgent(platforms="mobile").random}
             await write_file(self.ua_file, json.dumps(uas, indent=4))
         else:
-            uas = json.loads(await read_file(self.ua_file))
+            uas = json.loads(await read_file(self.ua_file, encoding="latin1"))
         
         ua = uas.get(uid)
         self.headers["User-Agent"] = ua
@@ -263,7 +262,7 @@ class MatchTod:
                     if not self.check_code(res.json()):
                         return False
                     self.simple_log(f"{green}Success start farming!")
-                    await asyncio.sleep(random.randint(2, 3))  # Wait 2-3 seconds after farming
+                    await asyncio.sleep(random.randint(2, 3))
                     continue
                 if now > next_claim_timestamp:
                     res = await self.http(
@@ -272,7 +271,7 @@ class MatchTod:
                     if not self.check_code(res.json()):
                         return False
                     self.simple_log(f"{green}Success claim farming!")
-                    await asyncio.sleep(random.randint(2, 3))  # Wait 2-3 seconds after claiming farming
+                    await asyncio.sleep(random.randint(2, 3))
                     continue
                 self.simple_log(f"{yellow}Not the time to claim farming")
                 break
@@ -336,7 +335,7 @@ class MatchTod:
                 self.simple_log(
                     f"{green}Successfully played a game with {white}{point} {green}points"
                 )
-                await asyncio.sleep(random.randint(2, 3))  # Wait 2-3 seconds after claiming game points
+                await asyncio.sleep(random.randint(2, 3))
 
         self.simple_log(f"{green}Final Balance: {white}{balance:.3f}")
         return balance
@@ -358,8 +357,8 @@ async def file_exists(filepath):
 async def get_file_size(filepath):
     return await asyncio.get_event_loop().run_in_executor(None, os.path.getsize, filepath)
 
-async def read_file(filepath):
-    with open(filepath, "r") as file:
+async def read_file(filepath, encoding="utf-8"):
+    with open(filepath, "r", encoding=encoding) as file:
         return file.read()
 
 async def write_file(filepath, data):
@@ -404,7 +403,6 @@ async def main():
             ),
         )
 
-    # Create user_agents directory if it doesn't exist
     if not await file_exists('user_agents'):
         os.makedirs('user_agents')
 
@@ -435,8 +433,8 @@ async def main():
         if not await file_exists(args.data):
             print(f"{white}Data file: {args.data} {red} file not found!")
             return
-        datas = [i for i in (await read_file(args.data)).splitlines() if len(i) > 0]
-        config = json.loads(await read_file(config_file))
+        datas = [i for i in (await read_file(args.data, encoding="latin1")).splitlines() if len(i) > 0]
+        config = json.loads(await read_file(config_file, encoding="latin1"))
         cfg = Config(
             auto_claim=config.get("auto_claim", True),
             auto_solve_task=config.get("auto_solve_task", True),
