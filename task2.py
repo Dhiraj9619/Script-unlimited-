@@ -406,10 +406,8 @@ def claim_game(token, game_id, points, user_agent=None):
             time.sleep(2)  # Retry delay
     return 0
 
-def auto_play_game(token, user_agent=None):
+def auto_play_game(token, user_agent=None, game_points_min=121, game_points_max=210):
     total_reward = 0
-    game_points_min = 121
-    game_points_max = 210
     play_time = 32  # Play for 32 seconds
 
     while True:
@@ -490,6 +488,10 @@ def main():
     with open('New_task_name.txt', 'r') as new_task_file:
         new_task_names = {line.strip() for line in new_task_file}
 
+    # Default game points
+    game_points_min = 121
+    game_points_max = 210
+
     while True:
         total_balance = 0.0
         print("\n" + Fore.MAGENTA + Style.BRIGHT + "="*50 + Style.RESET_ALL)
@@ -497,18 +499,41 @@ def main():
         print(Fore.MAGENTA + Style.BRIGHT + "="*50 + Style.RESET_ALL)
         print(f"{Fore.CYAN + Style.BRIGHT}1. All Tasks{Style.RESET_ALL}")
         print(f"{Fore.CYAN + Style.BRIGHT}2. Auto Farming{Style.RESET_ALL}")
-        print(f"{Fore.CYAN + Style.BRIGHT}3. Auto Play Game{Style.RESET_ALL}")  # Added Auto Play Game Option
+        print(f"{Fore.CYAN + Style.BRIGHT}3. Auto Play Game{Style.RESET_ALL}")
         print(f"{Fore.CYAN + Style.BRIGHT}4. Weekly Social Task{Style.RESET_ALL}")
         print(f"{Fore.CYAN + Style.BRIGHT}5. New Task (Keywords Task Only){Style.RESET_ALL}")
-        print(f"{Fore.CYAN + Style.BRIGHT}6. Exit Program{Style.RESET_ALL}")
+        print(f"{Fore.CYAN + Style.BRIGHT}6. Game Point Settings{Style.RESET_ALL}")
+        print(f"{Fore.CYAN + Style.BRIGHT}7. Exit Program{Style.RESET_ALL}")
         print(Fore.MAGENTA + Style.BRIGHT + "="*50 + Style.RESET_ALL)
-        user_choice = input("Enter your choice (1, 2, 3, 4, 5, 6): ").strip()
+        user_choice = input("Enter your choice (1, 2, 3, 4, 5, 6, 7): ").strip()
 
-        if user_choice not in ['1', '2', '3', '4', '5', '6']:
+        if user_choice not in ['1', '2', '3', '4', '5', '6', '7']:
             continue
 
-        if user_choice == '6':
+        if user_choice == '7':
             exit_program()  # Exit the program gracefully
+
+        if user_choice == '6':
+            # Game Point Settings
+            try:
+                game_points_min = int(input("Enter minimum game points (default 121): ").strip())
+                game_points_max = int(input("Enter maximum game points (default 210, max 280): ").strip())
+                
+                if game_points_max > 280:
+                    print(f"{Fore.RED + Style.BRIGHT}Maximum game points cannot exceed 280! Setting to 280.{Style.RESET_ALL}")
+                    game_points_max = 280
+
+                if game_points_min < 0 or game_points_max < game_points_min:
+                    print(f"{Fore.RED + Style.BRIGHT}Invalid input for game points. Reverting to defaults.{Style.RESET_ALL}")
+                    game_points_min = 121
+                    game_points_max = 210
+
+            except ValueError:
+                print(f"{Fore.RED + Style.BRIGHT}Invalid input! Reverting to default point settings.{Style.RESET_ALL}")
+                game_points_min = 121
+                game_points_max = 210
+
+            continue
 
         start_account = input("Enter the Account no to start the process from: ").strip()
         try:
@@ -567,7 +592,7 @@ def main():
                     start_farming(token, user_agent=user_agent)
 
                 if user_choice == '3':  # Auto Play Game Logic
-                    auto_play_game(token, user_agent=user_agent)
+                    auto_play_game(token, user_agent=user_agent, game_points_min=game_points_min, game_points_max=game_points_max)
 
                 if user_choice == '4':  # Weekly Social Task
                     process_specific_tasks(token, task_names_option4, user_agent=user_agent, is_validation_required=False)
