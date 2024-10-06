@@ -278,6 +278,7 @@ def get_task_keywords(task_name_file, keyword_file):
 def process_task(token, task_id, task_name, task_status, task_keywords, user_agent=None, is_validation_required=False):
     if task_status == "FINISHED":
         print(f"{Fore.RED + Style.BRIGHT}{task_name}: Already completed!{Style.RESET_ALL}")
+        return
     elif task_status == "NOT_STARTED":
         start_task(token, task_id, user_agent)
         task_status = "READY_FOR_VERIFY"  # Silently start the task if not started
