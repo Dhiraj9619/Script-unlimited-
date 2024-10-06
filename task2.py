@@ -125,7 +125,7 @@ def get_new_token(query_id, user_agent=None):
                 return token
         except requests.RequestException as e:
             log_error(f"Error generating token on attempt {attempt+1}: {e}")
-            time.sleep(2)  # Retry delay
+            time.sleep(random.uniform(1, 2))  # Retry delay
     return None
 
 def get_task(token, user_agent=None):
@@ -187,7 +187,7 @@ def start_farming(token, user_agent=None):
                     return end_date
             except requests.RequestException as e:
                 log_error(f"Error starting farming on attempt {attempt+1}: {e}")
-                time.sleep(2)  # Retry delay
+                time.sleep(random.uniform(1, 2))  # Retry delay
     else:
         print(f"{Fore.RED + Style.BRIGHT}Farming Already Started [✓]{Style.RESET_ALL}")
     return None
@@ -207,9 +207,8 @@ def get_daily_reward(token, user_agent=None):
             if response.status_code == 400:
                 print(f"{Fore.RED + Style.BRIGHT}Daily Reward already claimed [✓]{Style.RESET_ALL}")
                 return False
-            # Log error silently without printing to console
             log_error(f"Attempt {attempt+1}: Error claiming daily reward: {e}")
-            time.sleep(random.uniform(1, 2))  # Wait 1-2 seconds before retrying
+            time.sleep(random.uniform(1, 2))  # Retry delay
 
     print(f"{Fore.RED + Style.BRIGHT}Failed to claim Daily Reward after {max_retries} attempts.{Style.RESET_ALL}")
     return False
@@ -302,7 +301,7 @@ def start_task(token, task_id, user_agent=None):
             return response.json()
         except requests.HTTPError as e:
             log_error(f"Error starting task {task_id} on attempt {attempt+1}: {e}")
-            time.sleep(random.randint(2, 3))  # Retry delay
+            time.sleep(random.uniform(1, 2))  # Retry delay
     return None
 
 def claim_task(token, task_id, user_agent=None):
@@ -314,7 +313,7 @@ def claim_task(token, task_id, user_agent=None):
             response.raise_for_status()
             return response.json().get("status")
         except requests.HTTPError:
-            time.sleep(random.randint(2, 3))  # Retry delay
+            time.sleep(random.uniform(1, 2))  # Retry delay
     return None
 
 def validate_task(token, task_id, keyword, user_agent=None):
@@ -330,21 +329,24 @@ def validate_task(token, task_id, keyword, user_agent=None):
                     return True
         except requests.HTTPError as e:
             log_error(f"Error validating task {task_id} on attempt {attempt+1}: {e}")
-            time.sleep(2)  # Retry delay
+            time.sleep(random.uniform(1, 2))  # Retry delay
     return False
 
 def new_balance(token, user_agent=None):
     url = "https://game-domain.blum.codes/api/v1/user/balance"
     headers = get_headers(token, user_agent)
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        data_balance = response.json()
-        new_balance = data_balance.get("availableBalance", "N/A")
-        play_passes = data_balance.get("playPasses", 0)
-        return new_balance, play_passes
-    except requests.RequestException as e:
-        log_error(f"Error retrieving new balance: {e}")
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            data_balance = response.json()
+            new_balance = data_balance.get("availableBalance", "N/A")
+            play_passes = data_balance.get("playPasses", 0)
+            return new_balance, play_passes
+        except requests.RequestException as e:
+            log_error(f"Error retrieving new balance on attempt {attempt+1}: {e}")
+            time.sleep(random.uniform(1, 2))  # Retry delay
     return None, None
 
 def clear_token_file(file_path):
@@ -389,7 +391,7 @@ def play_game(token, user_agent=None):
                 return game_id
         except requests.RequestException as e:
             log_error(f"Error starting game on attempt {attempt+1}: {e}")
-            time.sleep(2)  # Retry delay
+            time.sleep(random.uniform(1, 2))  # Retry delay
     return None
 
 def claim_game(token, game_id, points, user_agent=None):
@@ -404,7 +406,7 @@ def claim_game(token, game_id, points, user_agent=None):
             return points  # Return points claimed without printing here
         except requests.RequestException as e:
             log_error(f"Error claiming game reward on attempt {attempt+1}: {e}")
-            time.sleep(2)  # Retry delay
+            time.sleep(random.uniform(1, 2))  # Retry delay
     return 0
 
 def auto_play_game(token, user_agent=None, game_points_min=121, game_points_max=210):
@@ -560,9 +562,15 @@ def main():
             browser_info, os_info = extract_browser_info(user_agent)
             print(f"{Fore.MAGENTA + Style.BRIGHT}{browser_info}, {os_info}{Style.RESET_ALL}")
 
-            token = get_new_token(query_id, user_agent=user_agent)
+            token = None
+            for attempt in range(3):
+                token = get_new_token(query_id, user_agent=user_agent)
+                if token:
+                    break
+                log_error(f"Token generation failed on attempt {attempt+1}", index + 1, username)
+                time.sleep(random.uniform(1, 2))  # Retry delay
+
             if not token:
-                log_error("Token generation failed.", index + 1, username)
                 continue
 
             save_token(token, 'token.txt')
