@@ -213,6 +213,43 @@ def get_daily_reward(token, user_agent=None):
     print(f"{Fore.RED + Style.BRIGHT}Failed to claim Daily Reward after {max_retries} attempts.{Style.RESET_ALL}")
     return False
 
+def do_task(token, task_id, task_name, task_status, task_keywords, proxies=None, user_agent=None, is_validation_required=False, skip_ready_for_verify=False):
+    if task_status == "FINISHED":
+        print(f"{Fore.RED}{task_name}: Already completed{Style.RESET_ALL}")
+        return False
+    elif task_status == "READY_FOR_CLAIM":
+        claim_status = claim_task(token=token, task_id=task_id, user_agent=user_agent)
+        if claim_status == "FINISHED":
+            print(f"{Fore.GREEN}{task_name}: Claim Success{Style.RESET_ALL}")
+        else:
+            print(f"{Fore.RED}{task_name}: Claim Fail{Style.RESET_ALL}")
+    elif task_status == "READY_FOR_VERIFY" and skip_ready_for_verify:
+        print(f"{Fore.YELLOW}Skipping {task_name} as it is in READY_FOR_VERIFY status{Style.RESET_ALL}", end='\r')
+        time.sleep(1)
+        print(' ' * 40, end='\r')
+        return False
+    elif task_status == "READY_FOR_VERIFY" and is_validation_required:
+        keyword = task_keywords.get(task_name)
+        if keyword:
+            validate_status = validate_task(token=token, task_id=task_id, keyword=keyword, user_agent=user_agent)
+            if validate_status:
+                claim_status = claim_task(token=token, task_id=task_id, user_agent=user_agent)
+                if claim_status == "FINISHED":
+                    print(f"{Fore.GREEN}{task_name}: Claim Success after Validation{Style.RESET_ALL}")
+                else:
+                    print(f"{Fore.RED}{task_name}: Claim Fail after Validation{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.RED}{task_name}: Validation Failed{Style.RESET_ALL}")
+        else:
+            print(f"{Fore.RED}{task_name}: Keyword not found{Style.RESET_ALL}")
+    elif task_status == "NOT_STARTED" or task_status == "STARTED":
+        start = start_task(token=token, task_id=task_id, user_agent=user_agent)
+        if start and start.get("status") == "STARTED" and is_validation_required:
+            do_task(token, task_id, task_name, "READY_FOR_VERIFY", task_keywords, proxies, user_agent, is_validation_required)
+    else:
+        print(f"{Fore.RED}{task_name}: Unknown Status - {task_status}{Style.RESET_ALL}")
+    return True
+
 def process_specific_tasks(token, task_keywords, user_agent=None, is_validation_required=False):
     try:
         earn_section = get_task(token=token, user_agent=user_agent)
@@ -231,7 +268,9 @@ def process_specific_tasks(token, task_keywords, user_agent=None, is_validation_
                         task_name = sub_task["title"]
                         if task_name in task_keywords and task_id not in processed_ids:
                             task_status = sub_task["status"]
-                            process_task(token, task_id, task_name, task_status, task_keywords, user_agent, is_validation_required)
+                            if do_task(token, task_id, task_name, task_status, task_keywords, None, user_agent, is_validation_required):
+                                random_delay = random.randint(3, 5)
+                                countdown_timer(random_delay)
                             processed_ids.add(task_id)
     except Exception as e:
         log_error(f"Error processing specific tasks: {e}")
