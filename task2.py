@@ -224,30 +224,32 @@ def process_specific_tasks(token, task_keywords, user_agent=None, is_validation_
             return
 
         processed_ids = set()
-        tasks_to_process = []
+        tasks_map = {}
 
-        # Iterate through each section to gather tasks
+        # Organize tasks by their names for easy lookup
         for section in earn_sections:
             tasks = section.get("tasks", []) + section.get("subSections", [])
             for task in tasks:
-                # Ensure task is a dictionary
                 if isinstance(task, dict):
                     sub_tasks = task.get("tasks", task.get("subTasks", []))
                     for sub_task in sub_tasks:
                         task_id = sub_task["id"]
                         task_name = sub_task["title"]
-                        if task_name in task_keywords and task_id not in processed_ids:
-                            tasks_to_process.append(sub_task)
-                            processed_ids.add(task_id)
+                        tasks_map[task_name] = sub_task
 
-        # Ensure all tasks are processed
-        for task in tasks_to_process:
-            task_id = task["id"]
-            task_name = task["title"]
-            task_status = task["status"]
-            do_task(token, task_id, task_name, task_status, task_keywords, user_agent, is_validation_required)
-            random_delay = random.randint(1, 2)  # Add 1-2 second delay after each task
-            countdown_timer(random_delay)
+        # Ensure all tasks in task_names_option4 are processed
+        for task_name in task_keywords:
+            sub_task = tasks_map.get(task_name)
+            if sub_task:
+                task_id = sub_task["id"]
+                task_status = sub_task["status"]
+                if task_id not in processed_ids:
+                    do_task(token, task_id, task_name, task_status, task_keywords, user_agent, is_validation_required)
+                    processed_ids.add(task_id)
+                    random_delay = random.randint(1, 2)  # Add 1-2 second delay after each task
+                    countdown_timer(random_delay)
+            else:
+                log_error(f"Task '{task_name}' not found in the fetched tasks.")
 
     except Exception as e:
         log_error(f"Error processing specific tasks: {e}")
