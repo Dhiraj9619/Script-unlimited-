@@ -218,17 +218,19 @@ def do_task(token, task_id, task_name, task_status, task_keywords, user_agent, i
 
 def process_specific_tasks(token, task_keywords, user_agent=None, is_validation_required=False):
     try:
-        earn_section = get_task(token=token, user_agent=user_agent)
-        if not earn_section:
+        earn_sections = get_task(token=token, user_agent=user_agent)
+        if not earn_sections:
             print(f"{Fore.RED + Style.BRIGHT}No tasks fetched. Exiting task processing.{Style.RESET_ALL}")
             return
 
         processed_ids = set()
         tasks_to_process = []
 
-        for earn in earn_section:
-            tasks = earn.get("tasks", []) + earn.get("subSections", [])
+        # Iterate through each section to gather tasks
+        for section in earn_sections:
+            tasks = section.get("tasks", []) + section.get("subSections", [])
             for task in tasks:
+                # Ensure task is a dictionary
                 if isinstance(task, dict):
                     sub_tasks = task.get("tasks", task.get("subTasks", []))
                     for sub_task in sub_tasks:
@@ -252,14 +254,14 @@ def process_specific_tasks(token, task_keywords, user_agent=None, is_validation_
 
 def process_all_tasks(token, exclude_task_names, user_agent=None):
     try:
-        earn_section = get_task(token=token, user_agent=user_agent)
-        if not earn_section:
+        earn_sections = get_task(token=token, user_agent=user_agent)
+        if not earn_sections:
             print(f"{Fore.RED + Style.BRIGHT}No tasks fetched. Exiting task processing.{Style.RESET_ALL}")
             return
 
         processed_ids = set()
-        for earn in earn_section:
-            tasks = earn.get("tasks", []) + earn.get("subSections", [])
+        for section in earn_sections:
+            tasks = section.get("tasks", []) + section.get("subSections", [])
             for task in tasks:
                 if isinstance(task, dict):
                     sub_tasks = task.get("tasks", task.get("subTasks", []))
@@ -646,16 +648,16 @@ def main():
 
 def process_new_tasks_only(token, user_agent=None, new_task_names=set()):
     try:
-        earn_section = get_task(token=token, user_agent=user_agent)
-        if not earn_section:
+        earn_sections = get_task(token=token, user_agent=user_agent)
+        if not earn_sections:
             print(f"{Fore.RED + Style.BRIGHT}No tasks fetched. Exiting task processing.{Style.RESET_ALL}")
             return
 
         processed_ids = set()  # Set to track processed task IDs
         task_keywords = get_task_keywords('New_task_name.txt', 'Keyword.txt')
 
-        for earn in earn_section:
-            tasks = earn.get("tasks", []) + earn.get("subSections", [])
+        for section in earn_sections:
+            tasks = section.get("tasks", []) + section.get("subSections", [])
             for task in tasks:
                 if isinstance(task, dict):
                     sub_tasks = task.get("tasks", task.get("subTasks", []))
