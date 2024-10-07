@@ -123,7 +123,8 @@ def get_new_token(query_id, user_agent=None):
             token = response_json.get('token', {}).get('refresh', None)
             if token:
                 return token
-        except requests.RequestException:
+        except requests.RequestException as e:
+            log_error(f"Error generating token on attempt {attempt+1}: {e}")
             time.sleep(random.uniform(1, 2))  # Retry delay
     return None
 
@@ -145,8 +146,10 @@ def claim_farming(token, user_agent=None):
         try:
             response = requests.post(url, headers=headers)
             if response.status_code == 200:
+                print(f"{Fore.GREEN + Style.BRIGHT}Farming Claimed Successfully [✓]{Style.RESET_ALL}")
                 return True
             elif response.status_code == 425:
+                print(f"{Fore.RED + Style.BRIGHT}Farming Already Claimed [✓]{Style.RESET_ALL}")
                 return False
         except requests.RequestException:
             time.sleep(2)  # Retry delay without showing logs
@@ -210,33 +213,11 @@ def get_daily_reward(token, user_agent=None):
     print(f"{Fore.RED + Style.BRIGHT}Failed to claim Daily Reward after {max_retries} attempts.{Style.RESET_ALL}")
     return False
 
-def do_task(token, task_id, task_name, task_status, task_keywords, proxies=None, user_agent=None, is_validation_required=False, skip_ready_for_verify=False):
-    if task_status == "FINISHED":
-        return False
-    elif task_status == "READY_FOR_CLAIM":
-        claim_status = claim_task(token=token, task_id=task_id, user_agent=user_agent)
-        if claim_status == "FINISHED":
-            return True
-    elif task_status == "READY_FOR_VERIFY" and skip_ready_for_verify:
-        time.sleep(1)
-        return False
-    elif task_status == "READY_FOR_VERIFY" and is_validation_required:
-        keyword = task_keywords.get(task_name)
-        if keyword:
-            validate_status = validate_task(token=token, task_id=task_id, keyword=keyword, user_agent=user_agent)
-            if validate_status:
-                claim_status = claim_task(token=token, task_id=task_id, user_agent=user_agent)
-                return claim_status == "FINISHED"
-    elif task_status == "NOT_STARTED" or task_status == "STARTED":
-        start = start_task(token=token, task_id=task_id, user_agent=user_agent)
-        if start and start.get("status") == "STARTED" and is_validation_required:
-            return do_task(token, task_id, task_name, "READY_FOR_VERIFY", task_keywords, proxies, user_agent, is_validation_required)
-    return True
-
 def process_specific_tasks(token, task_keywords, user_agent=None, is_validation_required=False):
     try:
         earn_section = get_task(token=token, user_agent=user_agent)
         if not earn_section:
+            print(f"{Fore.RED + Style.BRIGHT}No tasks fetched. Exiting task processing.{Style.RESET_ALL}")
             return
 
         processed_ids = set()
@@ -251,7 +232,8 @@ def process_specific_tasks(token, task_keywords, user_agent=None, is_validation_
                         if task_name in task_keywords and task_id not in processed_ids:
                             task_status = sub_task["status"]
                             if do_task(token, task_id, task_name, task_status, task_keywords, None, user_agent, is_validation_required):
-                                countdown_timer(random.randint(2, 3))
+                                random_delay = random.randint(3, 5)
+                                countdown_timer(random_delay)
                             processed_ids.add(task_id)
     except Exception as e:
         log_error(f"Error processing specific tasks: {e}")
@@ -260,6 +242,7 @@ def process_all_tasks(token, exclude_task_names, user_agent=None):
     try:
         earn_section = get_task(token=token, user_agent=user_agent)
         if not earn_section:
+            print(f"{Fore.RED + Style.BRIGHT}No tasks fetched. Exiting task processing.{Style.RESET_ALL}")
             return
 
         processed_ids = set()
@@ -295,6 +278,7 @@ def get_task_keywords(task_name_file, keyword_file):
 
 def process_task(token, task_id, task_name, task_status, task_keywords, user_agent=None, is_validation_required=False):
     if task_status == "FINISHED":
+        print(f"{Fore.RED + Style.BRIGHT}{task_name}: Already completed!{Style.RESET_ALL}")
         return
     elif task_status == "NOT_STARTED":
         start_task(token, task_id, user_agent)
@@ -302,12 +286,12 @@ def process_task(token, task_id, task_name, task_status, task_keywords, user_age
     if task_status == "READY_FOR_CLAIM":
         claim_status = claim_task(token=token, task_id=task_id, user_agent=user_agent)
         if claim_status == "FINISHED":
-            return
+            print(f"{Fore.GREEN + Style.BRIGHT}{task_name}: Successfully claimed!{Style.RESET_ALL}")
     elif task_status == "READY_FOR_VERIFY":
         keyword = task_keywords.get(task_name)
         if is_validation_required and keyword:
             if validate_task(token, task_id, keyword, user_agent):
-                return
+                print(f"{Fore.GREEN + Style.BRIGHT}{task_name}: Successfully claimed!{Style.RESET_ALL}")
 
 def start_task(token, task_id, user_agent=None):
     url = f"https://earn-domain.blum.codes/api/v1/tasks/{task_id}/start"
@@ -317,7 +301,8 @@ def start_task(token, task_id, user_agent=None):
             response = requests.post(url=url, headers=get_headers(token=token, user_agent=user_agent), json={}, timeout=20)
             response.raise_for_status()
             return response.json()
-        except requests.HTTPError:
+        except requests.HTTPError as e:
+            log_error(f"Error starting task {task_id} on attempt {attempt+1}: {e}")
             time.sleep(random.uniform(1, 2))  # Retry delay
     return None
 
@@ -344,7 +329,8 @@ def validate_task(token, task_id, keyword, user_agent=None):
                 claim_status = claim_task(token=token, task_id=task_id, user_agent=user_agent)
                 if claim_status == "FINISHED":
                     return True
-        except requests.HTTPError:
+        except requests.HTTPError as e:
+            log_error(f"Error validating task {task_id} on attempt {attempt+1}: {e}")
             time.sleep(random.uniform(1, 2))  # Retry delay
     return False
 
@@ -360,7 +346,8 @@ def new_balance(token, user_agent=None):
             new_balance = data_balance.get("availableBalance", "N/A")
             play_passes = data_balance.get("playPasses", 0)
             return new_balance, play_passes
-        except requests.RequestException:
+        except requests.RequestException as e:
+            log_error(f"Error retrieving new balance on attempt {attempt+1}: {e}")
             time.sleep(random.uniform(1, 2))  # Retry delay
     return None, None
 
@@ -404,7 +391,8 @@ def play_game(token, user_agent=None):
             game_id = data.get("gameId")
             if game_id:
                 return game_id
-        except requests.RequestException:
+        except requests.RequestException as e:
+            log_error(f"Error starting game on attempt {attempt+1}: {e}")
             time.sleep(random.uniform(1, 2))  # Retry delay
     return None
 
@@ -418,7 +406,8 @@ def claim_game(token, game_id, points, user_agent=None):
             response = requests.post(url, headers=headers, json=body)
             response.raise_for_status()
             return points  # Return points claimed without printing here
-        except requests.RequestException:
+        except requests.RequestException as e:
+            log_error(f"Error claiming game reward on attempt {attempt+1}: {e}")
             time.sleep(random.uniform(1, 2))  # Retry delay
     return 0
 
@@ -580,6 +569,7 @@ def main():
                 token = get_new_token(query_id, user_agent=user_agent)
                 if token:
                     break
+                log_error(f"Token generation failed on attempt {attempt+1}", index + 1, username)
                 time.sleep(random.uniform(1, 2))  # Retry delay
 
             if not token:
@@ -646,6 +636,7 @@ def process_new_tasks_only(token, user_agent=None, new_task_names=set()):
     try:
         earn_section = get_task(token=token, user_agent=user_agent)
         if not earn_section:
+            print(f"{Fore.RED + Style.BRIGHT}No tasks fetched. Exiting task processing.{Style.RESET_ALL}")
             return
 
         processed_ids = set()  # Set to track processed task IDs
