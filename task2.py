@@ -213,6 +213,11 @@ def get_daily_reward(token, user_agent=None):
     print(f"{Fore.RED + Style.BRIGHT}Failed to claim Daily Reward after {max_retries} attempts.{Style.RESET_ALL}")
     return False
 
+def do_task(token, task_id, task_name, task_status, task_keywords, user_agent, is_validation_required):
+    # Implementation logic to process the task
+    print(f"Processing task: {task_name}")
+    process_task(token, task_id, task_name, task_status, task_keywords, user_agent, is_validation_required)
+
 def process_specific_tasks(token, task_keywords, user_agent=None, is_validation_required=False):
     try:
         earn_section = get_task(token=token, user_agent=user_agent)
@@ -231,9 +236,9 @@ def process_specific_tasks(token, task_keywords, user_agent=None, is_validation_
                         task_name = sub_task["title"]
                         if task_name in task_keywords and task_id not in processed_ids:
                             task_status = sub_task["status"]
-                            if do_task(token, task_id, task_name, task_status, task_keywords, None, user_agent, is_validation_required):
-                                random_delay = random.randint(3, 5)
-                                countdown_timer(random_delay)
+                            do_task(token, task_id, task_name, task_status, task_keywords, user_agent, is_validation_required)
+                            random_delay = random.randint(1, 2)  # Add 1-2 second delay after each task
+                            countdown_timer(random_delay)
                             processed_ids.add(task_id)
     except Exception as e:
         log_error(f"Error processing specific tasks: {e}")
