@@ -214,8 +214,6 @@ def get_daily_reward(token, user_agent=None):
     return False
 
 def do_task(token, task_id, task_name, task_status, task_keywords, user_agent, is_validation_required):
-    # Implementation logic to process the task
-    print(f"Processing task: {task_name}")
     process_task(token, task_id, task_name, task_status, task_keywords, user_agent, is_validation_required)
 
 def process_specific_tasks(token, task_keywords, user_agent=None, is_validation_required=False):
@@ -226,6 +224,8 @@ def process_specific_tasks(token, task_keywords, user_agent=None, is_validation_
             return
 
         processed_ids = set()
+        tasks_to_process = []
+
         for earn in earn_section:
             tasks = earn.get("tasks", []) + earn.get("subSections", [])
             for task in tasks:
@@ -235,11 +235,18 @@ def process_specific_tasks(token, task_keywords, user_agent=None, is_validation_
                         task_id = sub_task["id"]
                         task_name = sub_task["title"]
                         if task_name in task_keywords and task_id not in processed_ids:
-                            task_status = sub_task["status"]
-                            do_task(token, task_id, task_name, task_status, task_keywords, user_agent, is_validation_required)
-                            random_delay = random.randint(1, 2)  # Add 1-2 second delay after each task
-                            countdown_timer(random_delay)
+                            tasks_to_process.append(sub_task)
                             processed_ids.add(task_id)
+
+        # Ensure all tasks are processed
+        for task in tasks_to_process:
+            task_id = task["id"]
+            task_name = task["title"]
+            task_status = task["status"]
+            do_task(token, task_id, task_name, task_status, task_keywords, user_agent, is_validation_required)
+            random_delay = random.randint(1, 2)  # Add 1-2 second delay after each task
+            countdown_timer(random_delay)
+
     except Exception as e:
         log_error(f"Error processing specific tasks: {e}")
 
