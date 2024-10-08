@@ -213,57 +213,16 @@ def get_daily_reward(token, user_agent=None):
     print(f"{Fore.RED + Style.BRIGHT}Failed to claim Daily Reward after {max_retries} attempts.{Style.RESET_ALL}")
     return False
 
-def do_task(token, task_id, task_name, task_status, task_keywords, user_agent, is_validation_required):
-    process_task(token, task_id, task_name, task_status, task_keywords, user_agent, is_validation_required)
-
-def process_specific_tasks(token, task_keywords, user_agent=None, is_validation_required=False):
-    try:
-        earn_sections = get_task(token=token, user_agent=user_agent)
-        if not earn_sections:
-            print(f"{Fore.RED + Style.BRIGHT}No tasks fetched. Exiting task processing.{Style.RESET_ALL}")
-            return
-
-        processed_ids = set()
-        tasks_map = {}
-
-        # Organize tasks by their names for easy lookup
-        for section in earn_sections:
-            tasks = section.get("tasks", []) + section.get("subSections", [])
-            for task in tasks:
-                if isinstance(task, dict):
-                    sub_tasks = task.get("tasks", task.get("subTasks", []))
-                    for sub_task in sub_tasks:
-                        task_id = sub_task["id"]
-                        task_name = sub_task["title"]
-                        tasks_map[task_name] = sub_task
-
-        # Ensure all tasks in task_names_option4 are processed
-        for task_name in task_keywords:
-            sub_task = tasks_map.get(task_name)
-            if sub_task:
-                task_id = sub_task["id"]
-                task_status = sub_task["status"]
-                if task_id not in processed_ids:
-                    do_task(token, task_id, task_name, task_status, task_keywords, user_agent, is_validation_required)
-                    processed_ids.add(task_id)
-                    random_delay = random.randint(1, 2)  # Add 1-2 second delay after each task
-                    countdown_timer(random_delay)
-            else:
-                log_error(f"Task '{task_name}' not found in the fetched tasks.")
-
-    except Exception as e:
-        log_error(f"Error processing specific tasks: {e}")
-
 def process_all_tasks(token, exclude_task_names, user_agent=None):
     try:
-        earn_sections = get_task(token=token, user_agent=user_agent)
-        if not earn_sections:
+        earn_section = get_task(token=token, user_agent=user_agent)
+        if not earn_section:
             print(f"{Fore.RED + Style.BRIGHT}No tasks fetched. Exiting task processing.{Style.RESET_ALL}")
             return
 
         processed_ids = set()
-        for section in earn_sections:
-            tasks = section.get("tasks", []) + section.get("subSections", [])
+        for earn in earn_section:
+            tasks = earn.get("tasks", []) + earn.get("subSections", [])
             for task in tasks:
                 if isinstance(task, dict):
                     sub_tasks = task.get("tasks", task.get("subTasks", []))
@@ -487,13 +446,13 @@ def main():
     query_ids = get_query_ids_from_file('data.txt')
     fake_data = get_fake_data(query_ids)
 
-    task_names_option4 = [
-        "Check Blum Telegram",
-        "Check Blum Instagram",
-        "Check Blum X",
-        "Check Blum Facebook",
-        "Check Blum Discord",
-        "Check Blum YouTube"
+    task_ids_for_earn_checking_social = [
+        "33ddee08-2ef4-45ef-b243-8d80c6b32009",
+        "3f1502b8-9e87-4b3a-995d-81c135f29f27",
+        "1e5faaca-6d17-4f3b-96aa-537a112c1e68",
+        "97d50b4c-a070-4136-a41d-390e67b883e0",
+        "7ec46833-c5bf-4320-827e-fb04ab740972",     
+        "4098fa89-3b83-42d6-a987-a9b8a6f40caf"
     ]
 
     exclude_task_names_option1 = {
@@ -521,7 +480,7 @@ def main():
         print(f"{Fore.CYAN + Style.BRIGHT}1. All Tasks{Style.RESET_ALL}")
         print(f"{Fore.CYAN + Style.BRIGHT}2. Auto Farming{Style.RESET_ALL}")
         print(f"{Fore.CYAN + Style.BRIGHT}3. Auto Play Game{Style.RESET_ALL}")
-        print(f"{Fore.CYAN + Style.BRIGHT}4. Weekly Social Task{Style.RESET_ALL}")
+        print(f"{Fore.CYAN + Style.BRIGHT}4. Earn for Checking Social Tasks{Style.RESET_ALL}")
         print(f"{Fore.CYAN + Style.BRIGHT}5. New Task (Keywords Task Only){Style.RESET_ALL}")
         print(f"{Fore.CYAN + Style.BRIGHT}6. Game Point Settings{Style.RESET_ALL}")
         print(f"{Fore.CYAN + Style.BRIGHT}7. Exit Program{Style.RESET_ALL}")
@@ -597,12 +556,12 @@ def main():
             print(f"{Fore.GREEN + Style.BRIGHT}Previous Balance: {prev_balance}{Style.RESET_ALL}")
 
             try:
-                if user_choice in ['1', '2']:  # Check daily reward for both options
-                    if not check_daily_reward_time():
-                        print(f"{Fore.YELLOW + Style.BRIGHT}Daily check-in will work after 11:00 AM.{Style.RESET_ALL}")
-                    else:
-                        if get_daily_reward(token, user_agent=user_agent):
-                            countdown_timer(random.randint(2, 3))
+                # Perform daily check-in at the beginning of all options
+                if not check_daily_reward_time():
+                    print(f"{Fore.YELLOW + Style.BRIGHT}Daily check-in will work after 11:00 AM.{Style.RESET_ALL}")
+                else:
+                    if get_daily_reward(token, user_agent=user_agent):
+                        countdown_timer(random.randint(2, 3))
 
                 if user_choice == '1':
                     if claim_farming(token, user_agent=user_agent):
@@ -621,8 +580,8 @@ def main():
                 if user_choice == '3':  # Auto Play Game Logic
                     auto_play_game(token, user_agent=user_agent, game_points_min=game_points_min, game_points_max=game_points_max)
 
-                if user_choice == '4':  # Weekly Social Task
-                    process_specific_tasks(token, task_names_option4, user_agent=user_agent, is_validation_required=False)
+                if user_choice == '4':  # Earn for Checking Social Tasks
+                    process_tasks_by_id(token, task_ids_for_earn_checking_social, user_agent=user_agent)
 
                 if user_choice == '5':  # New Task
                     # Only process tasks that are in the New_task_name.txt
@@ -648,18 +607,56 @@ def main():
 
         clear_token_file('token.txt')
 
+def process_tasks_by_id(token, task_ids, user_agent=None):
+    try:
+        earn_section = get_task(token=token, user_agent=user_agent)
+        if not earn_section:
+            print(f"{Fore.RED + Style.BRIGHT}No tasks fetched. Exiting task processing.{Style.RESET_ALL}")
+            return
+
+        processed_ids = set()
+        for earn in earn_section:
+            tasks = earn.get("tasks", []) + earn.get("subSections", [])
+            for task in tasks:
+                if isinstance(task, dict):
+                    sub_tasks = task.get("tasks", task.get("subTasks", []))
+                    for sub_task in sub_tasks:
+                        task_id = sub_task["id"]
+                        if task_id in task_ids and task_id not in processed_ids:
+                            task_status = sub_task["status"]
+                            if start_and_claim_task(token, task_id, task_status, user_agent):
+                                random_delay = random.randint(3, 5)
+                                countdown_timer(random_delay)
+                            processed_ids.add(task_id)
+    except Exception as e:
+        log_error(f"Error processing tasks by ID: {e}")
+
+def start_and_claim_task(token, task_id, task_status, user_agent=None):
+    if task_status == "FINISHED":
+        print(f"{Fore.RED + Style.BRIGHT}Task ID {task_id}: Already completed!{Style.RESET_ALL}")
+        return False
+    elif task_status == "NOT_STARTED":
+        start_task(token, task_id, user_agent)
+        task_status = "READY_FOR_CLAIM"  # Skip validation and move to claim
+    if task_status == "READY_FOR_CLAIM":
+        claim_status = claim_task(token=token, task_id=task_id, user_agent=user_agent)
+        if claim_status == "FINISHED":
+            print(f"{Fore.GREEN + Style.BRIGHT}Task ID {task_id}: Successfully claimed!{Style.RESET_ALL}")
+            return True
+    return False
+
 def process_new_tasks_only(token, user_agent=None, new_task_names=set()):
     try:
-        earn_sections = get_task(token=token, user_agent=user_agent)
-        if not earn_sections:
+        earn_section = get_task(token=token, user_agent=user_agent)
+        if not earn_section:
             print(f"{Fore.RED + Style.BRIGHT}No tasks fetched. Exiting task processing.{Style.RESET_ALL}")
             return
 
         processed_ids = set()  # Set to track processed task IDs
         task_keywords = get_task_keywords('New_task_name.txt', 'Keyword.txt')
 
-        for section in earn_sections:
-            tasks = section.get("tasks", []) + section.get("subSections", [])
+        for earn in earn_section:
+            tasks = earn.get("tasks", []) + earn.get("subSections", [])
             for task in tasks:
                 if isinstance(task, dict):
                     sub_tasks = task.get("tasks", task.get("subTasks", []))
